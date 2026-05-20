@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>traceClip - Chrome Trace Slicer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>traceClip</h1>
+    <p class="subtitle">Chrome Performance Trace single-frame slice tool</p>
+
+    <form id="slice-form" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="file">Trace File (.json)</label>
+        <input type="file" id="file" name="file" accept=".json" required>
+      </div>
+
+      <div class="form-group">
+        <label for="start">Start Timestamp (ms)</label>
+        <input type="text" id="start" name="start" placeholder="e.g. 1000" required>
+      </div>
+
+      <div class="form-group">
+        <label for="end">End Timestamp (ms)</label>
+        <input type="text" id="end" name="end" placeholder="e.g. 1016.666">
+        <p class="hint">Provide End OR Duration. If both given, End takes precedence.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="duration">Duration (ms)</label>
+        <input type="text" id="duration" name="duration" placeholder="e.g. 16.666 (~60fps)">
+      </div>
+
+      <div class="form-group">
+        <label for="cat">Category Filter</label>
+        <input type="text" id="cat" name="cat" placeholder="e.g. gpu,webgl,cc">
+        <p class="hint">Comma-separated. Optional. Only events matching these categories are kept.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name Filter</label>
+        <input type="text" id="name" name="name" placeholder="e.g. Frame,DrawFrame,Paint">
+        <p class="hint">Comma-separated. Optional. Only events matching these names are kept.</p>
+      </div>
+
+      <button type="submit" class="btn-primary" id="submit-btn">Slice</button>
+    </form>
+
+    <div id="result-area" class="result" style="display:none;">
+      <h3>Result</h3>
+      <pre id="result-stats"></pre>
+      <a id="download-link" class="btn-download" style="display:none;">Download Sliced Trace</a>
+    </div>
+
+    <div id="error-area" class="error" style="display:none;"></div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

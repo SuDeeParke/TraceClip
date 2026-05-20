@@ -1,0 +1,16 @@
+[
+  {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 1, "args": {"name": "CrRendererMain"}},
+  {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 2, "args": {"name": "Compositor"}},
+
+  {"name": "Frame", "cat": "toplevel", "ph": "X", "ts": 3000, "dur": 16, "pid": 1, "tid": 1},
+  {"name": "Layout", "cat": "browser", "ph": "X", "ts": 3002, "dur": 3, "pid": 1, "tid": 1},
+  {"name": "Paint", "cat": "browser", "ph": "X", "ts": 3006, "dur": 4, "pid": 1, "tid": 1},
+  {"name": "CompositeLayers", "cat": "gpu", "ph": "X", "ts": 3011, "dur": 2, "pid": 1, "tid": 2},
+  {"name": "DrawFrame", "cat": "toplevel", "ph": "X", "ts": 3014, "dur": 1.5, "pid": 1, "tid": 2},
+
+  {"name": "OutsideFrame", "cat": "browser", "ph": "X", "ts": 3030, "dur": 5, "pid": 1, "tid": 1},
+
+  {"name": "VSync", "cat": "toplevel", "ph": "i", "ts": 3000, "pid": 1, "tid": 1, "s": "t"},
+  {"name": "Commit", "cat": "browser", "ph": "i", "ts": 3013, "pid": 1, "tid": 2, "s": "t"},
+  {"name": "OutsideInstant", "cat": "gpu", "ph": "i", "ts": 3050, "pid": 1, "tid": 2, "s": "t"}
+]

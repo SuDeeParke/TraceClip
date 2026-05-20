@@ -1,0 +1,24 @@
+{
+  "traceEvents": [
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 1, "args": {"name": "CrRendererMain"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 2, "args": {"name": "Compositor"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 3, "args": {"name": "GpuThread"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 4, "args": {"name": "CompositorTileWorker1"}},
+
+    {"name": "WebGLRenderingContext::drawArrays", "cat": "webgl", "ph": "X", "ts": 2000, "dur": 1.2, "pid": 1, "tid": 1},
+    {"name": "WebGLRenderingContext::drawElements", "cat": "webgl", "ph": "X", "ts": 2002, "dur": 0.8, "pid": 1, "tid": 1},
+    {"name": "GpuChannel::OnMessageReceived", "cat": "gpu", "ph": "X", "ts": 2003, "dur": 5, "pid": 1, "tid": 3},
+    {"name": "Scheduler::BeginFrame", "cat": "cc", "ph": "X", "ts": 2001, "dur": 3, "pid": 1, "tid": 2},
+    {"name": "TileTaskImageDecode", "cat": "cc", "ph": "X", "ts": 2005, "dur": 4, "pid": 1, "tid": 4},
+    {"name": "DisplayItem::Draw", "cat": "viz", "ph": "X", "ts": 2008, "dur": 2.5, "pid": 1, "tid": 2},
+
+    {"name": "WebGLRenderingContext::texImage2D", "cat": "webgl", "ph": "X", "ts": 1995, "dur": 8, "pid": 1, "tid": 1},
+    {"name": "OverlappingGL", "cat": "gpu", "ph": "X", "ts": 2010, "dur": 12, "pid": 1, "tid": 3},
+
+    {"name": "OutsideWebGL", "cat": "webgl", "ph": "X", "ts": 2030, "dur": 5, "pid": 1, "tid": 1},
+
+    {"name": "WebGLRenderingContext::clear", "cat": "webgl", "ph": "i", "ts": 2000, "pid": 1, "tid": 1, "s": "t"},
+    {"name": "SwapBuffers", "cat": "gpu", "ph": "i", "ts": 2015, "pid": 1, "tid": 3, "s": "t"},
+    {"name": "OutsideInstant", "cat": "viz", "ph": "i", "ts": 2050, "pid": 1, "tid": 2, "s": "t"}
+  ]
+}

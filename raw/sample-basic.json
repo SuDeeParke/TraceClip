@@ -1,0 +1,28 @@
+{
+  "traceEvents": [
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 1, "args": {"name": "CrBrowserMain"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 2, "args": {"name": "Compositor"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 3, "args": {"name": "CrRendererMain"}},
+    {"name": "thread_name", "cat": "__metadata", "ph": "M", "ts": 0, "pid": 1, "tid": 4, "args": {"name": "VizCompositorThread"}},
+
+    {"name": "Frame", "cat": "toplevel", "ph": "X", "ts": 1000, "dur": 16, "pid": 1, "tid": 1},
+    {"name": "Layout", "cat": "browser", "ph": "X", "ts": 1002, "dur": 3, "pid": 1, "tid": 3},
+    {"name": "Paint", "cat": "browser", "ph": "X", "ts": 1006, "dur": 4, "pid": 1, "tid": 3},
+    {"name": "CompositeLayers", "cat": "gpu", "ph": "X", "ts": 1011, "dur": 2, "pid": 1, "tid": 2},
+    {"name": "DrawFrame", "cat": "toplevel", "ph": "X", "ts": 1014, "dur": 1.5, "pid": 1, "tid": 2},
+
+    {"name": "OverlappingStart", "cat": "renderer", "ph": "X", "ts": 990, "dur": 15, "pid": 1, "tid": 3},
+    {"name": "OverlappingEnd", "cat": "renderer", "ph": "X", "ts": 1015, "dur": 10, "pid": 1, "tid": 3},
+
+    {"name": "OutsideBefore", "cat": "browser", "ph": "X", "ts": 980, "dur": 8, "pid": 1, "tid": 1},
+    {"name": "OutsideAfter", "cat": "gpu", "ph": "X", "ts": 1030, "dur": 5, "pid": 1, "tid": 2},
+
+    {"name": "VSync", "cat": "toplevel", "ph": "i", "ts": 1000, "pid": 1, "tid": 1, "s": "t"},
+    {"name": "Commit", "cat": "browser", "ph": "i", "ts": 1013, "pid": 1, "tid": 2, "s": "t"},
+    {"name": "OutsideInstant", "cat": "gpu", "ph": "i", "ts": 1050, "pid": 1, "tid": 4, "s": "t"},
+
+    {"name": "Frame", "cat": "toplevel", "ph": "X", "ts": 1018, "dur": 16, "pid": 1, "tid": 1},
+    {"name": "ParseHTML", "cat": "browser", "ph": "X", "ts": 1020, "dur": 5, "pid": 1, "tid": 3},
+    {"name": "UpdateLayerTree", "cat": "cc", "ph": "X", "ts": 1026, "dur": 2, "pid": 1, "tid": 2}
+  ]
+}

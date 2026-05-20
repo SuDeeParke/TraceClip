@@ -1,2 +1,6 @@
 ./raw
 ./output
+./uploads
+node_modules
+uploads/*.json
+output
