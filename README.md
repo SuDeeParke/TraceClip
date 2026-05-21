@@ -1,5 +1,7 @@
 # traceClip
 
+[English](./README.md) | [中文](./README.zh-CN.md)
+
 traceClip is a Chrome Performance Trace slicing tool.
 It lets you extract a focused time window from a large trace, keep the result Chrome-compatible, and generate a compact summary sidecar for quick hotspot inspection.
 
