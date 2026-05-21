@@ -25,5 +25,6 @@ export function adaptSliceResult(data) {
         : null,
     },
     summaryRows: Array.isArray(data.summaryPreview) ? data.summaryPreview : [],
+    metadata: data.metadata || null,
   };
 }

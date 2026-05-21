@@ -47,6 +47,85 @@ const IMPORTANT_CATS = new Set([
 ]);
 
 const SUMMARY_PREVIEW_LIMIT = 8;
+const FILTER_OPTION_LIMIT = 64;
+
+function uniqueSortedValues(values, limit = FILTER_OPTION_LIMIT) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b)).slice(0, limit);
+}
+
+function parseTraceData(trace) {
+  if (Array.isArray(trace)) {
+    return { events: trace, wrapper: null };
+  }
+
+  if (trace.traceEvents && Array.isArray(trace.traceEvents)) {
+    return { events: trace.traceEvents, wrapper: trace };
+  }
+
+  throw new Error("Unrecognized trace format (expected array or {traceEvents:[...]})");
+}
+
+function readTraceInput(inputPath) {
+  const raw = fs.readFileSync(inputPath, "utf-8");
+  let trace;
+  try {
+    trace = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Invalid JSON in input file: ${e.message}`);
+  }
+
+  return parseTraceData(trace);
+}
+
+function buildTraceMetadata(events, wrapper, detectedTraceUnit) {
+  const divisor = detectedTraceUnit === "us" ? 1000 : 1;
+  const relevantEvents = events.filter((event) => event.ph !== "M" && Number.isFinite(event.ts));
+  const builtInCategories = Array.from(IMPORTANT_CATS).sort((a, b) => a.localeCompare(b));
+  const builtInNames = Array.from(IMPORTANT_NAMES)
+    .filter((name) => name !== "TracingStartedInBrowser")
+    .sort((a, b) => a.localeCompare(b));
+
+  if (relevantEvents.length === 0) {
+    return {
+      traceStartMs: 0,
+      traceEndMs: 0,
+      traceRangeMs: 0,
+      builtInCategories,
+      builtInNames,
+      categories: [],
+      names: [],
+      reportUnit: "ms",
+    };
+  }
+
+  const traceStartTs = Math.min(...relevantEvents.map((event) => event.ts));
+  const traceEndTs = Math.max(
+    ...relevantEvents.map((event) =>
+      Number.isFinite(event.dur) && event.dur > 0 ? event.ts + event.dur : event.ts
+    )
+  );
+
+  const categories = uniqueSortedValues(
+    relevantEvents.flatMap((event) =>
+      String(event.cat || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
+  const names = uniqueSortedValues(relevantEvents.map((event) => String(event.name || "").trim()));
+
+  return {
+    traceStartMs: Number((traceStartTs / divisor).toFixed(3)),
+    traceEndMs: Number((traceEndTs / divisor).toFixed(3)),
+    traceRangeMs: Number(((traceEndTs - traceStartTs) / divisor).toFixed(3)),
+    builtInCategories,
+    builtInNames,
+    categories,
+    names,
+    reportUnit: "ms",
+  };
+}
 
 function parseCategorySet(value) {
   return value
@@ -142,6 +221,17 @@ function getSummaryOutputPath(outputPath) {
   return path.join(parsed.dir, `${baseName}.summary${extension}`);
 }
 
+function getTraceMetadata(input) {
+  const inputPath = path.resolve(input);
+  if (!fs.existsSync(inputPath)) {
+    throw new Error(`input file not found: ${inputPath}`);
+  }
+
+  const { events, wrapper } = readTraceInput(inputPath);
+  const detectedTraceUnit = detectTraceUnit(wrapper, events);
+  return buildTraceMetadata(events, wrapper, detectedTraceUnit);
+}
+
 async function sliceTraceFile(options) {
   const {
     input,
@@ -181,25 +271,7 @@ async function sliceTraceFile(options) {
     throw new Error(`input file not found: ${inputPath}`);
   }
 
-  const raw = fs.readFileSync(inputPath, "utf-8");
-  let trace;
-  try {
-    trace = JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`Invalid JSON in input file: ${e.message}`);
-  }
-
-  let events;
-  let wrapper;
-  if (Array.isArray(trace)) {
-    events = trace;
-    wrapper = null;
-  } else if (trace.traceEvents && Array.isArray(trace.traceEvents)) {
-    events = trace.traceEvents;
-    wrapper = trace;
-  } else {
-    throw new Error("Unrecognized trace format (expected array or {traceEvents:[...]})");
-  }
+  const { events, wrapper } = readTraceInput(inputPath);
 
   const detectedTraceUnit = detectTraceUnit(wrapper, events);
   const inputFactor = detectedTraceUnit === "us" ? 1000 : 1;
@@ -327,7 +399,7 @@ async function main() {
   console.log(`Summary: ${result.summaryOutput}`);
 }
 
-module.exports = { sliceTraceFile };
+module.exports = { sliceTraceFile, getTraceMetadata };
 
 if (require.main === module) {
   main().catch((err) => {

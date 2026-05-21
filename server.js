@@ -3,7 +3,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { randomUUID } = require("crypto");
-const { sliceTraceFile } = require("./slice-trace.js");
+const { sliceTraceFile, getTraceMetadata } = require("./slice-trace.js");
 
 const app = express();
 const HOST = "127.0.0.1";
@@ -82,6 +82,10 @@ function validateSliceWindow(start, end, duration) {
     return "end must be a number";
   }
 
+  if (start < 0) {
+    return "start must be 0 ms or greater";
+  }
+
   if (resolvedEnd <= start) {
     return "end must be greater than start";
   }
@@ -151,6 +155,30 @@ const serveStaticDir = fs.existsSync(DIST_DIR) ? DIST_DIR : path.join(__dirname,
 app.use(express.static(serveStaticDir));
 
 app.post(
+  "/api/trace-metadata",
+  (req, res, next) => {
+    if (isRateLimited(req)) {
+      return res.status(429).json({ ok: false, error: "Too many requests" });
+    }
+    next();
+  },
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ ok: false, error: "No file uploaded" });
+      }
+
+      const metadata = getTraceMetadata(req.file.path);
+      res.json({ ok: true, metadata });
+    } catch (err) {
+      console.error("Trace metadata error:", err);
+      res.status(400).json({ ok: false, error: err.message || "Failed to read trace metadata" });
+    }
+  }
+);
+
+app.post(
   "/api/slice",
   (req, res, next) => {
     if (isRateLimited(req)) {
@@ -174,11 +202,18 @@ app.post(
         return res.status(400).json({ ok: false, error: validationError });
       }
 
+      const metadata = getTraceMetadata(req.file.path);
+      const absoluteStart = Number((metadata.traceStartMs + start).toFixed(3));
+      const absoluteEnd = end !== undefined
+        ? Number((metadata.traceStartMs + end).toFixed(3))
+        : undefined;
+      const absoluteDuration = duration !== undefined ? duration : undefined;
+
       const options = {
         input: req.file.path,
-        start,
-        end,
-        duration,
+        start: absoluteStart,
+        end: absoluteEnd,
+        duration: absoluteDuration,
         cat: req.body.cat || undefined,
         name: req.body.name || undefined,
       };
@@ -186,14 +221,17 @@ app.post(
       const result = await sliceTraceFile(options);
       const outputFile = path.basename(result.output);
       const summaryFile = path.basename(result.summaryOutput);
-      const summaryPreview = result.summary.preview || [];
+      const summaryPreview = (result.summary.preview || []).map((row) => ({
+        ...row,
+        startTime: Number((row.startTime - metadata.traceStartMs).toFixed(3)),
+      }));
 
       res.json({
         ok: true,
         inputEvents: result.inputEvents,
         outputEvents: result.outputEvents,
-        start: result.start,
-        end: result.end,
+        start,
+        end: end !== undefined ? end : Number((result.end - metadata.traceStartMs).toFixed(3)),
         duration: result.duration,
         outputFile,
         downloadUrl: createDownloadUrl(result.output, outputFile),
@@ -201,6 +239,7 @@ app.post(
         summaryUrl: createDownloadUrl(result.summaryOutput, summaryFile),
         summaryPreview,
         detectedTraceUnit: result.detectedTraceUnit,
+        metadata,
       });
     } catch (err) {
       console.error("Slice error:", err);
@@ -261,5 +300,6 @@ module.exports = {
   getDownloadRecord,
   isPathInside,
   sanitizeDownloadName,
+  validateSliceWindow,
 };
 

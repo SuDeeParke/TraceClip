@@ -11,9 +11,9 @@ export function SummaryPreviewTable({ rows }) {
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
         <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)] gap-4 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           <span>Interaction</span>
-          <span>Start time</span>
-          <span>Self time</span>
-          <span>Total</span>
+          <span>Start at (ms)</span>
+          <span>Self time (ms)</span>
+          <span>Total (ms)</span>
         </div>
 
         {rows.length === 0 ? (

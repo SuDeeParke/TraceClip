@@ -23,11 +23,11 @@ export function ResultSummaryCard({ title, description, metrics, details, downlo
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 px-4 py-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Start</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Start at</p>
           <p className="mt-2 text-sm font-medium text-slate-900">{details.start}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 px-4 py-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">End</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">End at</p>
           <p className="mt-2 text-sm font-medium text-slate-900">{details.end}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 px-4 py-3">

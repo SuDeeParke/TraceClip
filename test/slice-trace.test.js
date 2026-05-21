@@ -3,12 +3,13 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { sliceTraceFile } = require("../slice-trace.js");
+const { getTraceMetadata, sliceTraceFile } = require("../slice-trace.js");
 const {
   createDownloadUrl,
   getDownloadRecord,
   isPathInside,
   sanitizeDownloadName,
+  validateSliceWindow,
 } = require("../server.js");
 
 function makeTempPath(name) {
@@ -110,6 +111,19 @@ test("converts ms input to microseconds for real Chrome-style traces", async () 
   assert.equal(runTask.totalDuration, 16);
 });
 
+test("extracts trace metadata with built-in and dynamic filter options", () => {
+  const metadata = getTraceMetadata(path.join(__dirname, "..", "raw", "sample-basic.json"));
+
+  assert.equal(metadata.reportUnit, "ms");
+  assert.equal(metadata.traceStartMs, 980);
+  assert.equal(metadata.traceEndMs, 1050);
+  assert.equal(metadata.traceRangeMs, 70);
+  assert.ok(metadata.builtInCategories.includes("devtools.timeline"));
+  assert.ok(metadata.builtInNames.includes("RunTask"));
+  assert.ok(metadata.categories.includes("renderer"));
+  assert.ok(metadata.names.includes("OverlappingStart"));
+});
+
 test("uses a safe summary path when output has no extension", async () => {
   const output = makeTempPath("slice-noext");
   const result = await sliceTraceFile({
@@ -131,9 +145,11 @@ test("server no longer exposes raw or output directories as static assets", () =
   assert.equal(serverSource.includes('app.use("/raw", express.static('), false);
   assert.equal(serverSource.includes('app.use("/output", express.static('), false);
   assert.ok(serverSource.includes('app.get("/api/download/:token"'));
+  assert.ok(serverSource.includes('"/api/trace-metadata"'));
   assert.ok(serverSource.includes('createDownloadUrl(result.output, outputFile)'));
   assert.ok(serverSource.includes('createDownloadUrl(result.summaryOutput, summaryFile)'));
   assert.ok(serverSource.includes('summaryPreview'));
+  assert.ok(serverSource.includes('metadata.traceStartMs + start'));
 });
 
 test("path guard only allows files inside the output directory", () => {
@@ -146,6 +162,13 @@ test("path guard only allows files inside the output directory", () => {
 test("download names are sanitized before response use", () => {
   assert.equal(sanitizeDownloadName('trace summary?.json'), 'trace_summary_.json');
   assert.equal(sanitizeDownloadName('../weird\\name.json'), 'name.json');
+});
+
+test("validates start and end against the relative trace window rules", () => {
+  assert.equal(validateSliceWindow(-1, 1, undefined), "start must be 0 ms or greater");
+  assert.equal(validateSliceWindow(10, 10, undefined), "end must be greater than start");
+  assert.equal(validateSliceWindow(0, 60001, undefined), "duration must be 60000 ms or less");
+  assert.equal(validateSliceWindow(0, 16.666, undefined), null);
 });
 
 test("download tokens are single-use and limited to output artifacts", async () => {
