@@ -2,18 +2,125 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const { randomUUID } = require("crypto");
 const { sliceTraceFile } = require("./slice-trace.js");
 
 const app = express();
+const HOST = "127.0.0.1";
 const PORT = 3000;
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const MAX_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const DOWNLOAD_TTL_MS = 10 * 60 * 1000;
 
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const OUTPUT_DIR = path.join(__dirname, "output");
 const RAW_DIR = path.join(__dirname, "raw");
+const requestLog = new Map();
+const downloadTokens = new Map();
 
 [UPLOADS_DIR, OUTPUT_DIR, RAW_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
+
+function getClientKey(req) {
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function isRateLimited(req) {
+  const now = Date.now();
+  const clientKey = getClientKey(req);
+  const recentRequests = (requestLog.get(clientKey) || []).filter(
+    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
+  );
+
+  recentRequests.push(now);
+  requestLog.set(clientKey, recentRequests);
+
+  return recentRequests.length > RATE_LIMIT_MAX_REQUESTS;
+}
+
+function isPathInside(parentDir, targetPath) {
+  const resolvedParent = path.resolve(parentDir);
+  const resolvedTarget = path.resolve(targetPath);
+  return resolvedTarget === resolvedParent || resolvedTarget.startsWith(`${resolvedParent}${path.sep}`);
+}
+
+function sanitizeDownloadName(fileName) {
+  return path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function parseOptionalNumber(value) {
+  if (value == null || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function validateSliceWindow(start, end, duration) {
+  if (!Number.isFinite(start)) {
+    return "start must be a number";
+  }
+
+  if (end === undefined && duration === undefined) {
+    return "end or duration is required";
+  }
+
+  if (end !== undefined && !Number.isFinite(end)) {
+    return "end must be a number";
+  }
+
+  if (duration !== undefined && !Number.isFinite(duration)) {
+    return "duration must be a number";
+  }
+
+  const resolvedEnd = end !== undefined ? end : start + duration;
+  if (!Number.isFinite(resolvedEnd)) {
+    return "end must be a number";
+  }
+
+  if (resolvedEnd <= start) {
+    return "end must be greater than start";
+  }
+
+  if (resolvedEnd - start > MAX_WINDOW_MS) {
+    return `duration must be ${MAX_WINDOW_MS} ms or less`;
+  }
+
+  return null;
+}
+
+function createDownloadUrl(filePath, downloadName) {
+  const resolvedFilePath = path.resolve(filePath);
+  if (!isPathInside(OUTPUT_DIR, resolvedFilePath)) {
+    throw new Error("download file must be inside output directory");
+  }
+
+  const token = randomUUID();
+  downloadTokens.set(token, {
+    filePath: resolvedFilePath,
+    downloadName: sanitizeDownloadName(downloadName),
+    expiresAt: Date.now() + DOWNLOAD_TTL_MS,
+  });
+  return `/api/download/${token}`;
+}
+
+function getDownloadRecord(token) {
+  const record = downloadTokens.get(token);
+  if (!record) return null;
+
+  downloadTokens.delete(token);
+
+  if (record.expiresAt < Date.now()) {
+    return null;
+  }
+
+  if (!isPathInside(OUTPUT_DIR, record.filePath)) {
+    return null;
+  }
+
+  return record;
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
@@ -26,7 +133,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (ext === ".json") {
@@ -38,58 +145,83 @@ const upload = multer({
 });
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/output", express.static(OUTPUT_DIR));
-app.use("/raw", express.static(RAW_DIR));
 
-app.post("/api/slice", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ ok: false, error: "No file uploaded" });
+app.post(
+  "/api/slice",
+  (req, res, next) => {
+    if (isRateLimited(req)) {
+      return res.status(429).json({ ok: false, error: "Too many requests" });
     }
+    next();
+  },
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ ok: false, error: "No file uploaded" });
+      }
 
-    const start = Number(req.body.start);
-    const end = req.body.end ? Number(req.body.end) : undefined;
-    const duration = req.body.duration ? Number(req.body.duration) : undefined;
+      const start = parseOptionalNumber(req.body.start);
+      const end = parseOptionalNumber(req.body.end);
+      const duration = parseOptionalNumber(req.body.duration);
+      const validationError = validateSliceWindow(start, end, duration);
 
-    if (!Number.isFinite(start)) {
-      return res.status(400).json({ ok: false, error: "start must be a number" });
+      if (validationError) {
+        return res.status(400).json({ ok: false, error: validationError });
+      }
+
+      const options = {
+        input: req.file.path,
+        start,
+        end,
+        duration,
+        cat: req.body.cat || undefined,
+        name: req.body.name || undefined,
+      };
+
+      const result = await sliceTraceFile(options);
+      const outputFile = path.basename(result.output);
+      const summaryFile = path.basename(result.summaryOutput);
+
+      res.json({
+        ok: true,
+        inputEvents: result.inputEvents,
+        outputEvents: result.outputEvents,
+        start: result.start,
+        end: result.end,
+        duration: result.duration,
+        outputFile,
+        downloadUrl: createDownloadUrl(result.output, outputFile),
+        summaryFile,
+        summaryUrl: createDownloadUrl(result.summaryOutput, summaryFile),
+        detectedTraceUnit: result.detectedTraceUnit,
+      });
+    } catch (err) {
+      console.error("Slice error:", err);
+      res.status(500).json({ ok: false, error: "Internal server error" });
     }
-    if (end === undefined && duration === undefined) {
-      return res.status(400).json({ ok: false, error: "end or duration is required" });
-    }
-
-    const options = {
-      input: req.file.path,
-      start,
-      end,
-      duration,
-      cat: req.body.cat || undefined,
-      name: req.body.name || undefined,
-    };
-
-    const result = await sliceTraceFile(options);
-    const outputFile = path.basename(result.output);
-
-    res.json({
-      ok: true,
-      inputEvents: result.inputEvents,
-      outputEvents: result.outputEvents,
-      start: result.start,
-      end: result.end,
-      duration: result.duration,
-      outputFile,
-      downloadUrl: `/output/${outputFile}`,
-    });
-  } catch (err) {
-    console.error("Slice error:", err.message);
-    res.status(500).json({ ok: false, error: err.message });
   }
+);
+
+app.get("/api/download/:token", (req, res) => {
+  const record = getDownloadRecord(req.params.token);
+  if (!record) {
+    return res.status(404).json({ ok: false, error: "Download not found or expired" });
+  }
+
+  if (!fs.existsSync(record.filePath)) {
+    return res.status(404).json({ ok: false, error: "Download not found or expired" });
+  }
+
+  res.download(record.filePath, record.downloadName);
 });
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      return res.status(413).json({ ok: false, error: "File too large (max 500MB)" });
+      return res
+        .status(413)
+        .json({ ok: false, error: `File too large (max ${MAX_FILE_SIZE / (1024 * 1024)}MB)` });
     }
     return res.status(400).json({ ok: false, error: err.message });
   }
@@ -99,6 +231,17 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-app.listen(PORT, () => {
-  console.log(`traceClip server running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`traceClip server running at http://${HOST}:${PORT}`);
+  });
+}
+
+module.exports = {
+  app,
+  createDownloadUrl,
+  getDownloadRecord,
+  isPathInside,
+  sanitizeDownloadName,
+};
+

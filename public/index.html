@@ -10,6 +10,7 @@
   <div class="container">
     <h1>traceClip</h1>
     <p class="subtitle">Chrome Performance Trace single-frame slice tool</p>
+    <p class="hint">Input uses ms. Exported trace keeps Chrome's original time unit. Summary is reported in ms.</p>
 
     <form id="slice-form" enctype="multipart/form-data">
       <div class="form-group">
@@ -52,6 +53,7 @@
       <h3>Result</h3>
       <pre id="result-stats"></pre>
       <a id="download-link" class="btn-download" style="display:none;">Download Sliced Trace</a>
+      <a id="summary-link" class="btn-download" style="display:none;">Download Summary</a>
     </div>
 
     <div id="error-area" class="error" style="display:none;"></div>

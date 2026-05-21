@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "node server.js",
-    "slice": "node slice-trace.js"
+    "slice": "node slice-trace.js",
+    "test": "node --test"
   },
   "dependencies": {
     "express": "^4.18.0",
