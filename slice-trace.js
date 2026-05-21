@@ -46,6 +46,8 @@ const IMPORTANT_CATS = new Set([
   "latencyInfo",
 ]);
 
+const SUMMARY_PREVIEW_LIMIT = 8;
+
 function parseCategorySet(value) {
   return value
     ? new Set(value.split(",").map((s) => s.trim()).filter(Boolean))
@@ -129,6 +131,7 @@ function buildSummary(events, startMs, endMs, detectedTraceUnit) {
       durationMs: Number((endMs - startMs).toFixed(3)),
     },
     events: summaryEvents,
+    preview: summaryEvents.slice(0, SUMMARY_PREVIEW_LIMIT),
   };
 }
 
@@ -254,6 +257,7 @@ async function sliceTraceFile(options) {
     duration: Number((end - start).toFixed(3)),
     output: outputPath,
     summaryOutput,
+    summary,
     detectedTraceUnit,
   };
 }

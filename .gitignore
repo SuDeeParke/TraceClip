@@ -6,3 +6,5 @@ uploads/*.json
 output
 .omc
 .claude
+.playwright-mcp
+dist

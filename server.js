@@ -17,6 +17,9 @@ const DOWNLOAD_TTL_MS = 10 * 60 * 1000;
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 const OUTPUT_DIR = path.join(__dirname, "output");
 const RAW_DIR = path.join(__dirname, "raw");
+const DIST_DIR = path.join(__dirname, "dist");
+const INDEX_FILE = path.join(DIST_DIR, "index.html");
+
 const requestLog = new Map();
 const downloadTokens = new Map();
 
@@ -144,7 +147,8 @@ const upload = multer({
   },
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+const serveStaticDir = fs.existsSync(DIST_DIR) ? DIST_DIR : path.join(__dirname, "public");
+app.use(express.static(serveStaticDir));
 
 app.post(
   "/api/slice",
@@ -182,6 +186,7 @@ app.post(
       const result = await sliceTraceFile(options);
       const outputFile = path.basename(result.output);
       const summaryFile = path.basename(result.summaryOutput);
+      const summaryPreview = result.summary.preview || [];
 
       res.json({
         ok: true,
@@ -194,6 +199,7 @@ app.post(
         downloadUrl: createDownloadUrl(result.output, outputFile),
         summaryFile,
         summaryUrl: createDownloadUrl(result.summaryOutput, summaryFile),
+        summaryPreview,
         detectedTraceUnit: result.detectedTraceUnit,
       });
     } catch (err) {
@@ -215,6 +221,18 @@ app.get("/api/download/:token", (req, res) => {
 
   res.download(record.filePath, record.downloadName);
 });
+
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR));
+
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+
+    res.sendFile(INDEX_FILE);
+  });
+}
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {

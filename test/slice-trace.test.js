@@ -61,6 +61,9 @@ test("slices array traces and writes wrapped output plus summary sidecar", async
   assert.equal(summary.window.endMs, 3016.666);
   assert.ok(summary.events.some((event) => event.interactionEvent === "Layout"));
   assert.ok(summary.events.some((event) => event.interactionEvent === "Paint"));
+  assert.ok(Array.isArray(summary.preview));
+  assert.ok(summary.preview.length <= 8);
+  assert.deepEqual(summary.preview, summary.events.slice(0, summary.preview.length));
 });
 
 test("converts ms input to microseconds for real Chrome-style traces", async () => {
@@ -130,6 +133,7 @@ test("server no longer exposes raw or output directories as static assets", () =
   assert.ok(serverSource.includes('app.get("/api/download/:token"'));
   assert.ok(serverSource.includes('createDownloadUrl(result.output, outputFile)'));
   assert.ok(serverSource.includes('createDownloadUrl(result.summaryOutput, summaryFile)'));
+  assert.ok(serverSource.includes('summaryPreview'));
 });
 
 test("path guard only allows files inside the output directory", () => {
